@@ -3,3 +3,6 @@
 ################################################################################
 
 /hw/.vs
+/hw/build
+/hw/hw/out/build/x64-Debug (default)
+/hw/out/build/x64-Debug
