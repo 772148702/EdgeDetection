@@ -15,7 +15,7 @@
 #define PNG_BYTES_TO_CHECK	8
 #define HAVE_ALPHA			1
 #define NOT_HAVE_ALPHA		0
-
+int channels;
 typedef struct _pic_data pic_data;
 struct _pic_data {
 	int width, height; 	//长宽
@@ -61,7 +61,7 @@ int decode_png(const char* filename, pic_data* out) //取出png文件中的rgb�
 	png_init_io(png_ptr, fp);
 	//4:读取png文件信息以及强转转换成RGBA:8888数据格式
 	png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_EXPAND, 0); //读取文件信息
-	int channels, color_type;
+	int  color_type;
 	channels = png_get_channels(png_ptr, info_ptr); //通道数量
 	color_type = png_get_color_type(png_ptr, info_ptr);//颜色类型
 	out->bit_depth = png_get_bit_depth(png_ptr, info_ptr);//位深度	
@@ -78,8 +78,8 @@ int decode_png(const char* filename, pic_data* out) //取出png文件中的rgb�
 	//	png_set_tRNS_to_alpha(png_ptr);
 	//if(color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
 	//	png_set_gray_to_rgb(png_ptr);//灰度必须转换成RG
-	printf("channels = %d color_type = %d bit_depth = %d width = %d height = %d ...\n",
-		channels, color_type, out->bit_depth, out->width, out->height);
+	//printf("channels = %d color_type = %d bit_depth = %d width = %d height = %d ...\n",
+	//	channels, color_type, out->bit_depth, out->width, out->height);
 
 	int i, j, k;
 	int size, pos = 0;
@@ -89,44 +89,16 @@ int decode_png(const char* filename, pic_data* out) //取出png文件中的rgb�
 	png_bytepp row_pointers; //实际存储rgb数据的buf
 	row_pointers = png_get_rows(png_ptr, info_ptr); //也可以分别每一行获取png_get_rowbytes();
 	size = out->width * out->height; //申请内存先计算空间
-	if (channels == 4 || color_type == PNG_COLOR_TYPE_RGB_ALPHA) { //判断是24位还是32位
-		out->alpha_flag = HAVE_ALPHA; //记录是否有透明通道
-		size *= (sizeof(unsigned char) * 4); //size = out->width * out->height * channel
-		out->rgba = (png_bytep)malloc(size);
-		if (NULL == out->rgba) {
-			printf("malloc rgba faile ...\n");
-			png_destroy_read_struct(&png_ptr, &info_ptr, 0);
-			fclose(fp);
-			return -1;
-		}
-		//从row_pointers里读出实际的rgb数据出来
-		temp = channels - 1;
-		for (i = 0; i < out->height; i++)
-			for (j = 0; j < out->width * 4; j += 4)
-				for (k = temp; k >= 0; k--)
-					out->rgba[pos++] = row_pointers[i][j + k];
-	}
-	else if (channels == 3 || color_type == PNG_COLOR_TYPE_RGB) { //判断颜色深度是24位还是32位
-		out->alpha_flag = NOT_HAVE_ALPHA;
-		size *= (sizeof(unsigned char) * 3);
-		out->rgba = (png_bytep)malloc(size);
-		if (NULL == out->rgba) {
-			printf("malloc rgba faile ...\n");
-			png_destroy_read_struct(&png_ptr, &info_ptr, 0);
-			fclose(fp);
-			return -1;
-		}
-		//从row_pointers里读出实际的rgb数据
-		temp = (3 * out->width);
-		for (i = 0; i < out->height; i++) {
-			for (j = 0; j < temp; j += 3) {
-				out->rgba[pos++] = row_pointers[i][j + 2];
-				out->rgba[pos++] = row_pointers[i][j + 1];
-				out->rgba[pos++] = row_pointers[i][j + 0];
+
+
+	out->rgba = (png_bytep)malloc(out->height * out->width * channels);
+	for (i = 0; i < out->height; i++)
+		for (j = 0; j < out->width; j++)
+			for (k = 0; k < channels; k++) {
+				out->rgba[pos++] = row_pointers[i][j*channels + k];
 			}
-		}
-	}
-	else return -1;
+	
+
 	//6:销毁内存
 	png_destroy_read_struct(&png_ptr, &info_ptr, 0);
 	fclose(fp);
@@ -135,39 +107,39 @@ int decode_png(const char* filename, pic_data* out) //取出png文件中的rgb�
 	return 0;
 }
 
-int RotationRight90(unsigned char* src, int srcW, int srcH, int channel) //顺时针旋转90度
-{
-	unsigned char* tempSrc = NULL; //临时的buf用来记录原始的图像(未旋转之前的图像)
-	int mSize = srcW * srcH * sizeof(char) * channel;
-	int i = 0;
-	int j = 0;
-	int k = 0;
-	int l = 3;
-	int desW = 0;
-	int desH = 0;
-
-	desW = srcH;
-	desH = srcW;
-
-	tempSrc = (unsigned char*)malloc(sizeof(char) * srcW * srcH * channel);
-	memcpy(tempSrc, src, mSize); //拷贝原始图像至tempbuf
-	for (i = 0; i < desH; i++)
-	{
-		for (j = 0; j < desW; j++)
-		{
-			for (k = 0; k < channel; k++)
-			{
-				src[(i * desW + j) * channel + k] = tempSrc[((srcH - 1 - j) * srcW + i) * channel + k]; //替换像素
-			}
-		}
-	}
-	free(tempSrc);
-	return 0;
-}
+//int RotationRight90(unsigned char* src, int srcW, int srcH, int channel) //顺时针旋转90度
+//{
+//	unsigned char* tempSrc = NULL; //临时的buf用来记录原始的图像(未旋转之前的图像)
+//	int mSize = srcW * srcH * sizeof(char) * channel;
+//	int i = 0;
+//	int j = 0;
+//	int k = 0;
+//	int l = 3;
+//	int desW = 0;
+//	int desH = 0;
+//
+//	desW = srcH;
+//	desH = srcW;
+//
+//	tempSrc = (unsigned char*)malloc(sizeof(char) * srcW * srcH * channel);
+//	memcpy(tempSrc, src, mSize); //拷贝原始图像至tempbuf
+//	for (i = 0; i < desH; i++)
+//	{
+//		for (j = 0; j < desW; j++)
+//		{
+//			for (k = 0; k < channel; k++)
+//			{
+//				src[(i * desW + j) * channel + k] = tempSrc[((srcH - 1 - j) * srcW + i) * channel + k]; //替换像素
+//			}
+//		}
+//	}
+//	free(tempSrc);
+//	return 0;
+//}
 
 unsigned char* edge_dectetion(unsigned char* src, int srcW, int srcH, int channel,int nthreads)
 {
-	unsigned char* tempSrc = NULL; //临时的buf用来记录原始的图像(未旋转之前的图像)
+	unsigned char* tempSrc = NULL; 
 	int mSize = srcW * srcH * sizeof(char) * channel;
 	int i = 0;
 	int j = 0;
@@ -176,41 +148,55 @@ unsigned char* edge_dectetion(unsigned char* src, int srcW, int srcH, int channe
 	int desW = 0;
 	int desH = 0;
 
-	desW = srcH;
-	desH = srcW;
+	desW = srcW;
+	desH = srcH;
 
 	tempSrc = (unsigned char*)malloc(sizeof(char) * srcW * srcH * channel);
 	memcpy(tempSrc, src, mSize); //拷贝原始图像至tempbuf
 
-	std::vector<std::vector<int>> laplacian(3, std::vector<int>(3, 1));
-	laplacian[1][1] = 8; 
+	std::vector<std::vector<int>> laplacian(3, std::vector<int>(3, -1));
+
+	laplacian[1][1] = 8;
+
+
+	//std::vector<std::vector<int>> laplacian(3, std::vector<int>(3, 0));
+	//laplacian[0][1] = laplacian[1][0] = laplacian[1][2] = laplacian[2][1] = 1;
+	//laplacian[1][1] = -4;
 
 	int perDesH = desH / nthreads;
-	
-	std::function<void(int idx)> fun = [&](int x) {
-		for (int i = x * perDesH; i < (x + 1) * perDesH; ++i) {
+	if (desH % nthreads != 0) {
+		nthreads = nthreads + 1;
+	}
+	int tchannel = channel;
+	std::function<void(int idx,unsigned char* data)> fun = [=](int x, unsigned char* tempSrc) {
+
+		for (int i = x * perDesH; i < (x + 1) * perDesH&&i<desH; ++i) {
 			for (int j = 0; j < desW; ++j) {
 				int targetI, targetJ;
-				int ans = 0;
-				for (int ii = -1; ii <= 1; ++ii) {
-					for (int jj = -1; jj <= 1; ++jj) {
-						targetI = ii; targetJ = jj;
-						if (ii + i < 0||ii+i>=desH) targetI = 0;
-						if (jj + j < 0 || jj + j >= desW) targetJ = 0;
-						ans += src[(targetI+i) * desW + targetJ+j] * laplacian[ii+1][jj+1];
+				
+				for (int k = 0; k < tchannel; k++) {
+					int ans = 0;
+					for (int ii = -1; ii <= 1; ++ii) {
+ 						for (int jj = -1; jj <= 1; ++jj) {
+							targetI = ii; targetJ = jj;
+							if (ii + i < 0 || ii + i >= desH) targetI = 0;
+							if (jj + j < 0 || jj + j >= desW) targetJ = 0;
+							ans += src[((targetI + i) * desW + targetJ + j)*channel +k] * laplacian[ii + 1][jj + 1];
+
+						}
 					}
+					tempSrc[(i * desW  + j)*channel+k] = 1.0 / 9 * ans;
 				}
-				tempSrc[i * desW + j] = 1.0 / 9 * ans;
 			}
 		}
 	};
 	
-	std::vector<std::thread> threads(nthreads+1);
-	for (int i = 0; i <= nthreads; ++i) {
+	std::vector<std::thread> threads(nthreads);
+	for (int i = 0; i < nthreads; ++i) {
 		printf("thread %d start!\n", i);
-		threads[i].swap(std::thread(fun, i));
+		threads[i].swap(std::thread(fun, i, tempSrc));
 	}
-	for (int i = 0; i <= nthreads; ++i) {
+	for (int i = 0; i < nthreads; ++i) {
 		threads[i].join();
 		printf("thread %d end!\n", i);
 	}
@@ -253,8 +239,10 @@ int write_png_file(const char* filename, pic_data* out) //生成一个新的png�
 		printf("error during init_io ...\n");
 		return -1;
 	}
-	if (out->alpha_flag == HAVE_ALPHA) color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-	else color_type = PNG_COLOR_TYPE_RGB;
+
+	if (channels == 4) color_type = PNG_COLOR_TYPE_RGB;
+	else if (channels == 3) color_type = PNG_COLOR_TYPE_RGB;
+	else if (channels == 1) color_type = PNG_COLOR_TYPE_GRAY;
 	//5：设置以及写入头部信息到Png文件
 	png_set_IHDR(png_ptr, info_ptr, out->width, out->height, out->bit_depth,
 		color_type, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
@@ -263,36 +251,29 @@ int write_png_file(const char* filename, pic_data* out) //生成一个新的png�
 		printf("error during init_io ...\n");
 		return -1;
 	}
-	int channels, temp;
+	int  temp;
 	int i, j, pos = 0;
-	if (out->alpha_flag == HAVE_ALPHA) {
-		channels = 4;
-		temp = (4 * out->width);
-		printf("have alpha ...\n");
-	}
-	else {
-		channels = 3;
-		temp = (3 * out->width);
-		printf("not have alpha ...\n");
-	}
+	temp = (channels * out->width);
+	//if (out->alpha_flag == HAVE_ALPHA) {
+	//	channels = 4;
+	//	temp = (4 * out->width);
+	//	printf("have alpha ...\n");
+	//}
+	//else {
+	//	channels = 3;
+	//	temp = (3 * out->width);
+	//	printf("not have alpha ...\n");
+	//}
 	unsigned char* ref = out->rgba;
-	out->rgba =edge_dectetion(out->rgba, out->width, out->height, channels, 6);
+	out->rgba =edge_dectetion(out->rgba, out->width, out->height, channels, 1);
 	free(ref);
 	row_pointers = (png_bytep*)malloc(out->height * sizeof(png_bytep));
 	for (i = 0; i < out->height; i++) {
 		row_pointers[i] = (png_bytep)malloc(temp * sizeof(unsigned char));
-		for (j = 0; j < temp; j += channels) {
-			if (channels == 4) {
-				row_pointers[i][j + 3] = out->rgba[pos++];
-				row_pointers[i][j + 2] = out->rgba[pos++];
-				row_pointers[i][j + 1] = out->rgba[pos++];
-				row_pointers[i][j + 0] = out->rgba[pos++];
-			}
-			else {
-				row_pointers[i][j + 2] = out->rgba[pos++];
-				row_pointers[i][j + 1] = out->rgba[pos++];
-				row_pointers[i][j + 0] = out->rgba[pos++];
-			}
+		for (j = 0; j < out->width; j ++) {
+			for (int k = 0; k < channels; ++k) {
+				row_pointers[i][j * channels + k] = out->rgba[pos++];
+			}	
 		}
 	}
 	//6: 写入rgb数据到Png文件
@@ -315,10 +296,13 @@ int write_png_file(const char* filename, pic_data* out) //生成一个新的png�
 int main(int argc, char** argv)
 {
 	pic_data out;
-	
+
 	decode_png("./pngs/test1.png", &out);
 
 	write_png_file("./pngs/test1_out.png", &out);
+	decode_png("./pngs/02.png", &out);
+
+	write_png_file("./pngs/02_out.png", &out);
 	free(out.rgba);
 	
 
