@@ -18,14 +18,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
+
 add_executable(gui
+    ../hw/hw.h
     main.cpp
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+ 
 )
 
-target_link_libraries(gui PRIVATE Qt5::Widgets)
+target_link_libraries(gui PRIVATE Qt5::Widgets png)
 
 
 # TODO: Add tests and install targets if needed.

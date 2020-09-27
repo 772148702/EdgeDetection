@@ -6,5 +6,7 @@ cmake_minimum_required (VERSION 3.8)
 find_package(libpng CONFIG REQUIRED)
 # Add source to this project's executable.
 add_executable (hw "hw.cpp" "hw.h")
+#add_library(hwlib hw.h png)
 target_link_libraries(hw PRIVATE png)
+
 # TODO: Add tests and install targets if needed.
